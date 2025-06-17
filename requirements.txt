@@ -6,3 +6,4 @@ streamlit
 pypdf2
 duckdb
 huggingface-hub
+fpdf
