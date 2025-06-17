@@ -1,20 +1,25 @@
 import os
 import pandas as pd
 import streamlit as st
-from modules.rag_tool import initialize_rag_tool, handle_rag_query, save_to_memory as save_rag_memory, load_from_memory as load_rag_memory
-from modules.hts_duty_calculator import handle_duty_calculation, export_results_to_file, save_to_memory, load_from_memory
+from modules.rag_tool import initialize_rag_tool, handle_rag_query, save_to_memory as save_rag_memory, \
+    load_from_memory as load_rag_memory
+from modules.hts_duty_calculator import handle_duty_calculation, save_to_memory, load_from_memory
+import io
 import json
 
 # Suppress TensorFlow warnings
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 
+
 # Memory file prefix for individual users
 def get_memory_file(user_id, file_type):
     return f"{user_id}_{file_type}_memory.json"
 
+
 def validate_user_id_format(user_id):
     """Check if User ID is a valid 4-digit number."""
     return user_id.isdigit() and len(user_id) == 4
+
 
 def validate_user_id(user_id):
     """Check if User ID exists in any memory file."""
@@ -22,12 +27,16 @@ def validate_user_id(user_id):
     duty_file = get_memory_file(user_id, "duty")
     return os.path.exists(rag_file) or os.path.exists(duty_file)
 
+
 def reset_memory_on_id_change(new_user_id):
     """Reset session state if User ID changes."""
     if "user_id" not in st.session_state or st.session_state["user_id"] != new_user_id:
         st.session_state.user_id = new_user_id
-        st.session_state.rag_memory = load_rag_memory(get_memory_file(new_user_id, "rag")) if validate_user_id(new_user_id) else []
-        st.session_state.duty_memory = load_from_memory(get_memory_file(new_user_id, "duty")) if validate_user_id(new_user_id) else []
+        st.session_state.rag_memory = load_rag_memory(get_memory_file(new_user_id, "rag")) if validate_user_id(
+            new_user_id) else []
+        st.session_state.duty_memory = load_from_memory(get_memory_file(new_user_id, "duty")) if validate_user_id(
+            new_user_id) else []
+
 
 def main():
     st.set_page_config(page_title="HTS AI Agent", layout="wide")
@@ -136,11 +145,22 @@ def main():
 
         # Download options
         if st.button("Export to Excel"):
-            export_results_to_file(duty_memory, "excel")
-            st.success("Results exported to 'duty_results.xlsx'. Check the project directory.")
-        if st.button("Export to PDF"):
-            export_results_to_file(duty_memory, "pdf")
-            st.success("Results exported to 'duty_results.pdf'. Check the project directory.")
+            if duty_memory:
+                df = pd.DataFrame(duty_memory)
+                buffer = io.BytesIO()
+                with pd.ExcelWriter(buffer, engine="xlsxwriter") as writer:
+                    df.to_excel(writer, index=False)
+                buffer.seek(0)
+
+                st.download_button(
+                    label="Download Excel",
+                    data=buffer,
+                    file_name="duty_results.xlsx",
+                    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                )
+            else:
+                st.warning("No data available to export.")
+
 
 if __name__ == "__main__":
     main()
