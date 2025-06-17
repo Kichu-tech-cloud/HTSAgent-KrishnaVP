@@ -1,0 +1,8 @@
+langchain
+faiss-cpu
+pandas
+streamlit
+pypdf2
+duckdb
+huggingface-hub
+sqlite3
