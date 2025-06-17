@@ -2,7 +2,6 @@ import os
 import sqlite3
 from langchain_community.vectorstores import FAISS
 from langchain_community.embeddings import OpenAIEmbeddings
-import pandas as pd
 import json
 
 VECTOR_STORE_PATH = os.path.join(os.path.dirname(__file__), "data/vectorstore")
