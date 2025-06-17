@@ -12,38 +12,43 @@ os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 def get_memory_file(user_id, file_type):
     return f"{user_id}_{file_type}_memory.json"
 
+def validate_user_id_format(user_id):
+    """Check if User ID is a valid 4-digit number."""
+    return user_id.isdigit() and len(user_id) == 4
+
 def validate_user_id(user_id):
     """Check if User ID exists in any memory file."""
     rag_file = get_memory_file(user_id, "rag")
     duty_file = get_memory_file(user_id, "duty")
     return os.path.exists(rag_file) or os.path.exists(duty_file)
 
-def suggest_unique_user_id(base_id):
-    """Generate a unique User ID if the base ID is taken."""
-    counter = 1
-    while validate_user_id(base_id):
-        base_id = f"{base_id}_{counter}"
-        counter += 1
-    return base_id
+def reset_memory_on_id_change(new_user_id):
+    """Reset session state if User ID changes."""
+    if "user_id" not in st.session_state or st.session_state["user_id"] != new_user_id:
+        st.session_state.user_id = new_user_id
+        st.session_state.rag_memory = load_rag_memory(get_memory_file(new_user_id, "rag")) if validate_user_id(new_user_id) else []
+        st.session_state.duty_memory = load_from_memory(get_memory_file(new_user_id, "duty")) if validate_user_id(new_user_id) else []
 
 def main():
     st.set_page_config(page_title="HTS AI Agent", layout="wide")
 
     # Sidebar for user identification and navigation
     st.sidebar.title("HTS AI Agent")
-    user_id_input = st.sidebar.text_input("Enter Your User ID:", value="default_user")
+    user_id_input = st.sidebar.text_input("Enter Your 4-Digit User ID:")
 
     if st.sidebar.button("Validate User ID"):
-        if validate_user_id(user_id_input):
-            suggested_id = suggest_unique_user_id(user_id_input)
-            st.sidebar.warning(f"User ID '{user_id_input}' is already taken. Suggested ID: '{suggested_id}'")
-            user_id_input = suggested_id
+        if not validate_user_id_format(user_id_input):
+            st.sidebar.error("Invalid User ID. Please enter a 4-digit number.")
+        elif validate_user_id(user_id_input):
+            st.sidebar.success(f"User ID '{user_id_input}' is valid and data will be loaded.")
         else:
-            st.sidebar.success(f"User ID '{user_id_input}' is available.")
+            st.sidebar.success(f"User ID '{user_id_input}' is valid and starting fresh memory.")
 
-    if not user_id_input:
-        st.error("Please enter a valid User ID to proceed.")
+    if not validate_user_id_format(user_id_input):
+        st.error("Please enter a valid 4-digit User ID to proceed.")
         return
+
+    reset_memory_on_id_change(user_id_input)
 
     user_id = user_id_input
     rag_memory_file = get_memory_file(user_id, "rag")
@@ -56,10 +61,6 @@ def main():
         initialize_rag_tool()
 
         # Load user-specific RAG memory
-        if "rag_memory" not in st.session_state or st.session_state.get("user_id") != user_id:
-            st.session_state.user_id = user_id
-            st.session_state.rag_memory = load_rag_memory(rag_memory_file)
-
         rag_memory = st.session_state.rag_memory
 
         # User query input
@@ -93,10 +94,6 @@ def main():
         st.title("HTS Duty Calculator")
 
         # Load user-specific duty memory
-        if "duty_memory" not in st.session_state or st.session_state.get("user_id") != user_id:
-            st.session_state.user_id = user_id
-            st.session_state.duty_memory = load_from_memory(duty_memory_file)
-
         duty_memory = st.session_state.duty_memory
 
         # Input fields for duty calculation
