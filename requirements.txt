@@ -7,3 +7,4 @@ pypdf2
 duckdb
 huggingface-hub
 fpdf
+xlsxwriter
