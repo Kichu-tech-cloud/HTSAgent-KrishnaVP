@@ -5,4 +5,3 @@ streamlit
 pypdf2
 duckdb
 huggingface-hub
-sqlite3
